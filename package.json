@@ -1,0 +1,30 @@
+{
+  "name": "lemondrop",
+  "version": "0.0.0",
+  "description": "Create a core file of the current process the first time hapi responds with a 503",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test-cov"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geek/lemondrop.git"
+  },
+  "keywords": [
+    "hapi",
+    "plugin",
+    "core",
+    "mdb"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/geek/lemondrop/issues"
+  },
+  "homepage": "https://github.com/geek/lemondrop",
+  "devDependencies": {
+    "code": "^1.2.1",
+    "hapi": "^7.5.2",
+    "lab": "^5.1.0"
+  }
+}
