@@ -92,18 +92,134 @@ describe('Lemon Drop', function () {
             expect(err).to.not.exist();
             LemonDrop.isDropped = false;
 
-            server.inject({ method: 'get', url: '/' }, function (res) {
+            server.inject({ method: 'get', url: '/ok' }, function (res) {
 
-                expect(res.statusCode).to.equal(503);
+                expect(res.statusCode).to.equal(200);
 
-                server.inject({ method: 'get', url: '/ok' }, function (res) {
+                server.inject({ method: 'get', url: '/' }, function (res) {
 
-                    ChildProcess.exec = currentExec;
-                    expect(res.statusCode).to.equal(200);
-                    expect(dropCount).to.equal(1);
-                    done();
+                    expect(res.statusCode).to.equal(503);
+
+                    server.inject({ method: 'get', url: '/ok' }, function (res) {
+
+                        ChildProcess.exec = currentExec;
+                        expect(res.statusCode).to.equal(200);
+                        expect(dropCount).to.equal(1);
+                        done();
+                    });
                 });
             });
         });
+    });
+
+    it('logs errors trying to exec gcore', function (done) {
+
+        var currentExec = ChildProcess.exec;
+        var currentErr = console.error;
+        var server = new Hapi.Server();
+
+        server.route({ method: 'get', path: '/', handler: function (request, reply) {
+
+            reply(Hapi.Boom.serverTimeout());
+        }});
+
+        ChildProcess.exec = function (command, options, callback) {
+
+            expect(command).to.equal('gcore ' + process.pid);
+            callback(new Error('my error'));
+        };
+
+        server.pack.register({ plugin: LemonDrop }, function (err) {
+
+            expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
+
+            server.inject({ method: 'get', url: '/' }, function (res) {
+
+                expect(res.statusCode).to.equal(503);
+            });
+        });
+
+        console.error = function (err) {
+
+            expect(err.message).to.equal('my error');
+            console.error = currentErr;
+            ChildProcess.exec = currentExec;
+            done();
+        };
+    });
+
+    it('logs errors gcore passes to stderr', function (done) {
+
+        var currentExec = ChildProcess.exec;
+        var currentErr = console.error;
+        var server = new Hapi.Server();
+
+        server.route({ method: 'get', path: '/', handler: function (request, reply) {
+
+            reply(Hapi.Boom.serverTimeout());
+        }});
+
+        ChildProcess.exec = function (command, options, callback) {
+
+            expect(command).to.equal('gcore ' + process.pid);
+            callback(null, null, new Buffer('my error'));
+        };
+
+        server.pack.register({ plugin: LemonDrop }, function (err) {
+
+            expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
+
+            server.inject({ method: 'get', url: '/' }, function (res) {
+
+                expect(res.statusCode).to.equal(503);
+            });
+        });
+
+        console.error = function (err) {
+
+            expect(err.toString()).to.equal('my error');
+            console.error = currentErr;
+            ChildProcess.exec = currentExec;
+            done();
+        };
+    });
+
+    it('logs response from executing gcore', function (done) {
+
+        var currentExec = ChildProcess.exec;
+        var currentLog = console.log;
+        var server = new Hapi.Server();
+
+        server.route({ method: 'get', path: '/', handler: function (request, reply) {
+
+            reply(Hapi.Boom.serverTimeout());
+        }});
+
+        ChildProcess.exec = function (command, options, callback) {
+
+            expect(command).to.equal('gcore ' + process.pid);
+            callback(null, new Buffer('my result'), null);
+        };
+
+        server.pack.register({ plugin: LemonDrop }, function (err) {
+
+            expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
+
+            server.inject({ method: 'get', url: '/' }, function (res) {
+
+                expect(res.statusCode).to.equal(503);
+            });
+        });
+
+        console.log = function (msg) {
+
+            expect(msg.toString()).to.equal('my result');
+            console.log = currentLog;
+            ChildProcess.exec = currentExec;
+            done();
+        };
     });
 });
