@@ -48,6 +48,7 @@ describe('Lemon Drop', function () {
         server.pack.register({ plugin: LemonDrop }, function (err) {
 
             expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
 
             server.inject({ method: 'get', url: '/' }, function (res) {
 
@@ -56,6 +57,49 @@ describe('Lemon Drop', function () {
 
                     ChildProcess.exec = currentExec;
                     expect(res.statusCode).to.equal(503);
+                    expect(dropCount).to.equal(1);
+                    done();
+                });
+            });
+        });
+    });
+
+    it('won\'t run gcore when the response status isn\'t 503', function (done) {
+
+        var currentExec = ChildProcess.exec;
+        var dropCount = 0;
+        var server = new Hapi.Server();
+
+        server.route({ method: 'get', path: '/', handler: function (request, reply) {
+
+            reply(Hapi.Boom.serverTimeout());
+        }});
+
+        server.route({ method: 'get', path: '/ok', handler: function (request, reply) {
+
+            reply('ok');
+        }});
+
+        ChildProcess.exec = function (command, options, callback) {
+
+            expect(command).to.equal('gcore ' + process.pid);
+            dropCount++;
+            callback();
+        };
+
+        server.pack.register({ plugin: LemonDrop }, function (err) {
+
+            expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
+
+            server.inject({ method: 'get', url: '/' }, function (res) {
+
+                expect(res.statusCode).to.equal(503);
+
+                server.inject({ method: 'get', url: '/ok' }, function (res) {
+
+                    ChildProcess.exec = currentExec;
+                    expect(res.statusCode).to.equal(200);
                     expect(dropCount).to.equal(1);
                     done();
                 });
