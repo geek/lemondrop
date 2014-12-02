@@ -64,6 +64,51 @@ describe('Lemon Drop', function () {
         });
     });
 
+    it('runs gcore in location of options.path', function (done) {
+
+        var currentExec = ChildProcess.exec;
+        var dropCount = 0;
+        var server = new Hapi.Server();
+
+        server.route({ method: 'get', path: '/', handler: function (request, reply) {
+
+            reply(Hapi.Boom.serverTimeout());
+        }});
+
+        ChildProcess.exec = function (command, options, callback) {
+
+            expect(command).to.equal('ulimit -c unlimited; gcore ' + process.pid);
+            dropCount++;
+            callback();
+        };
+
+        server.pack.register({ plugin: LemonDrop, options: { path: '/tmp/test' } }, function (err) {
+
+            expect(err).to.not.exist();
+            LemonDrop.isDropped = false;
+            var currentConsole = console.log;
+            console.log = function (message) {
+
+                if (message.indexOf('Dropping core') !== -1) {
+                    expect(message.indexOf('/tmp/test')).not.to.equal(-1);
+                    console.log = currentConsole;
+                }
+            };
+
+            server.inject({ method: 'get', url: '/' }, function (res) {
+
+                expect(res.statusCode).to.equal(503);
+                server.inject({ method: 'get', url: '/' }, function (res) {
+
+                    ChildProcess.exec = currentExec;
+                    expect(res.statusCode).to.equal(503);
+                    expect(dropCount).to.equal(1);
+                    done();
+                });
+            });
+        });
+    });
+
     it('won\'t run gcore when the response status isn\'t 503', function (done) {
 
         var currentExec = ChildProcess.exec;
